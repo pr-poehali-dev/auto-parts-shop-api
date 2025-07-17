@@ -5,12 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
 import Icon from '@/components/ui/icon';
+import VinScanner from '@/components/VinScanner';
+import UserProfile from '@/components/UserProfile';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [vinCode, setVinCode] = useState('');
+  const [showVinScanner, setShowVinScanner] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [cartItems, setCartItems] = useState(0);
 
   const carBrands = [
     { name: 'BMW', logo: '🚗', partsCount: 15420 },
@@ -62,13 +70,26 @@ const Index = () => {
             </nav>
 
             <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <Icon name="User" className="w-4 h-4 mr-2" />
-                Войти
-              </Button>
-              <Button variant="outline" size="sm">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Icon name="User" className="w-4 h-4 mr-2" />
+                    Войти
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Личный кабинет</SheetTitle>
+                    <SheetDescription>Управление аккаунтом и заказами</SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6">
+                    <UserProfile />
+                  </div>
+                </SheetContent>
+              </Sheet>
+              <Button variant="outline" size="sm" onClick={() => toast({ title: "Корзина", description: `У вас ${cartItems} товаров в корзине` })}>
                 <Icon name="ShoppingCart" className="w-4 h-4 mr-2" />
-                Корзина
+                Корзина {cartItems > 0 && `(${cartItems})`}
               </Button>
             </div>
           </div>
@@ -140,7 +161,7 @@ const Index = () => {
                     className="h-12 text-lg"
                   />
                 </div>
-                <Select>
+                <Select onValueChange={(value) => setSelectedBrand(value)}>
                   <SelectTrigger className="w-48 h-12">
                     <SelectValue placeholder="Марка авто" />
                   </SelectTrigger>
@@ -152,7 +173,16 @@ const Index = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button className="h-12 px-8 bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="h-12 px-8 bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    if (searchQuery.trim()) {
+                      toast({ title: "Поиск запущен", description: `Ищем: ${searchQuery}` });
+                    } else {
+                      toast({ title: "Ошибка", description: "Введите название запчасти" });
+                    }
+                  }}
+                >
                   <Icon name="Search" className="w-5 h-5 mr-2" />
                   Найти
                 </Button>
@@ -160,24 +190,9 @@ const Index = () => {
             </TabsContent>
             
             <TabsContent value="vin" className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Input
-                    placeholder="Введите VIN-код (17 символов)..."
-                    value={vinCode}
-                    onChange={(e) => setVinCode(e.target.value)}
-                    className="h-12 text-lg font-mono"
-                    maxLength={17}
-                  />
-                </div>
-                <Button className="h-12 px-8 bg-orange-600 hover:bg-orange-700">
-                  <Icon name="Scan" className="w-5 h-5 mr-2" />
-                  Сканировать
-                </Button>
-              </div>
-              <p className="text-sm text-gray-500 text-center">
-                VIN-код находится на лобовом стекле или в документах на автомобиль
-              </p>
+              <VinScanner onVinResult={(result) => {
+                toast({ title: "VIN найден", description: `${result.brand} ${result.model} ${result.year}` });
+              }} />
             </TabsContent>
             
             <TabsContent value="brands" className="space-y-4">
@@ -185,8 +200,13 @@ const Index = () => {
                 {carBrands.map(brand => (
                   <Card 
                     key={brand.name} 
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-                    onClick={() => setSelectedBrand(brand.name)}
+                    className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 ${
+                      selectedBrand === brand.name ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedBrand(brand.name);
+                      toast({ title: "Марка выбрана", description: `${brand.name} - ${brand.partsCount.toLocaleString()} запчастей` });
+                    }}
                   >
                     <CardContent className="p-4 text-center">
                       <div className="text-3xl mb-2">{brand.logo}</div>
@@ -224,7 +244,17 @@ const Index = () => {
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold text-blue-600">{part.price}</span>
-                    <Button size="sm" variant={part.inStock ? "default" : "outline"}>
+                    <Button 
+                      size="sm" 
+                      variant={part.inStock ? "default" : "outline"}
+                      onClick={() => {
+                        setCartItems(prev => prev + 1);
+                        toast({ 
+                          title: part.inStock ? "Добавлено в корзину" : "Заказ оформлен", 
+                          description: part.name 
+                        });
+                      }}
+                    >
                       <Icon name="ShoppingCart" className="w-4 h-4 mr-2" />
                       {part.inStock ? "Купить" : "Заказать"}
                     </Button>
