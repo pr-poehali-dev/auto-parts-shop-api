@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import Icon from '@/components/ui/icon';
 import VinScanner from '@/components/VinScanner';
 import UserProfile from '@/components/UserProfile';
+import Cart from '@/components/Cart';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,6 +20,14 @@ const Index = () => {
   const [showVinScanner, setShowVinScanner] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [cartItems, setCartItems] = useState(0);
+  const [cartData, setCartData] = useState<Array<{
+    id: number;
+    name: string;
+    price: string;
+    priceValue: number;
+    category: string;
+    quantity: number;
+  }>>([]);
 
   const carBrands = [
     { name: 'BMW', logo: '🚗', partsCount: 15420 },
@@ -87,10 +96,39 @@ const Index = () => {
                   </div>
                 </SheetContent>
               </Sheet>
-              <Button variant="outline" size="sm" onClick={() => toast({ title: "Корзина", description: `У вас ${cartItems} товаров в корзине` })}>
-                <Icon name="ShoppingCart" className="w-4 h-4 mr-2" />
-                Корзина {cartItems > 0 && `(${cartItems})`}
-              </Button>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Icon name="ShoppingCart" className="w-4 h-4 mr-2" />
+                    Корзина {cartItems > 0 && `(${cartItems})`}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Корзина</SheetTitle>
+                    <SheetDescription>Ваши выбранные товары</SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6">
+                    <Cart 
+                      items={cartData}
+                      onUpdateQuantity={(id, quantity) => {
+                        setCartData(prev => prev.map(item => 
+                          item.id === id ? { ...item, quantity } : item
+                        ));
+                        setCartItems(cartData.reduce((sum, item) => sum + item.quantity, 0));
+                      }}
+                      onRemoveItem={(id) => {
+                        setCartData(prev => prev.filter(item => item.id !== id));
+                        setCartItems(prev => prev - 1);
+                      }}
+                      onClearCart={() => {
+                        setCartData([]);
+                        setCartItems(0);
+                      }}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
@@ -248,6 +286,27 @@ const Index = () => {
                       size="sm" 
                       variant={part.inStock ? "default" : "outline"}
                       onClick={() => {
+                        const newItem = {
+                          id: Date.now() + index,
+                          name: part.name,
+                          price: part.price,
+                          priceValue: parseInt(part.price.replace(/[^\d]/g, '')),
+                          category: part.category,
+                          quantity: 1
+                        };
+                        
+                        setCartData(prev => {
+                          const existingItem = prev.find(item => item.name === part.name);
+                          if (existingItem) {
+                            return prev.map(item => 
+                              item.name === part.name 
+                                ? { ...item, quantity: item.quantity + 1 }
+                                : item
+                            );
+                          }
+                          return [...prev, newItem];
+                        });
+                        
                         setCartItems(prev => prev + 1);
                         toast({ 
                           title: part.inStock ? "Добавлено в корзину" : "Заказ оформлен", 
